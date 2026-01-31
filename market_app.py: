@@ -15,4 +15,3 @@ def send_test_message():
 
 if __name__ == "__main__":
     send_test_message()
-_
