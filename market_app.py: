@@ -1,45 +1,40 @@
 import requests
 import os
-import yfinance as yf
+import time
 
-def get_indian_market():
-    try:
-        # Fetching Nifty 50 and major Indian stocks
-        nifty = yf.Ticker("^NSEI").history(period="1d")['Close'].iloc[-1]
-        tcs = yf.Ticker("TCS.NS").history(period="1d")['Close'].iloc[-1]
-        return f"🇮🇳 **INDIAN MARKET**\n🔹 Nifty 50: **{nifty:.2f}**\n🔹 TCS: **{tcs:.2f}**\n"
-    except:
-        return "🇮🇳 Indian Market: Data unavailable.\n"
-
-def get_hub_news(query):
-    api_key = os.getenv("NEWS_API_KEY")
-    # Searches for 1 top headline for your specific topics
-    url = f"https://newsapi.org/v2/everything?q={query}&pageSize=1&sortBy=relevance&apiKey={api_key}"
-    try:
-        data = requests.get(url).json()
-        article = data['articles'][0]
-        return f"📌 **{query.upper()}**: {article['title']}\n🔗 [Read More]({article['url']})\n"
-    except:
-        return ""
-
-def send_full_report():
+def send_message(chat_id, text):
     token = os.getenv("TELEGRAM_TOKEN")
-    chat_id = os.getenv("TELEGRAM_CHAT_ID")
-    
-    report = "🏛 **FINANCIAL INTELLIGENCE HUB** 🏛\n\n"
-    report += get_indian_market() + "\n"
-    
-    # Fetching your specific interest categories
-    categories = ["Geopolitics", "Commodities Gold", "FinTech", "AI", "Healthcare"]
-    for cat in categories:
-        report += get_hub_news(cat)
-    
-    report += "\n📊 **Advising/Insight:** Markets show volatility in derivatives; maintain long-term focus.\n"
-    report += "\n⚠️ *Note: Educational insights only.*"
-
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {"chat_id": chat_id, "text": report, "parse_mode": "Markdown", "disable_web_page_preview": True}
-    requests.post(url, data=payload)
+    requests.post(url, data={"chat_id": chat_id, "text": text})
+
+def listen_for_messages():
+    token = os.getenv("TELEGRAM_TOKEN")
+    last_update_id = 0
+    print("Bot is now listening for 5 minutes...")
+    
+    # Listen for 5 minutes (GitHub Actions will stop after this)
+    timeout = time.time() + 300 
+    while time.time() < timeout:
+        url = f"https://api.telegram.org/bot{token}/getUpdates?offset={last_update_id + 1}"
+        response = requests.get(url).json()
+        
+        if response.get("result"):
+            for update in response["result"]:
+                last_update_id = update["update_id"]
+                user_msg = update["message"]["text"]
+                chat_id = update["message"]["chat"]["id"]
+                
+                print(f"Received: {user_msg}")
+                if "/start" in user_msg:
+                    send_message(chat_id, "Hello! I am your Financial Hub. Send me 'market' for prices.")
+                elif "market" in user_msg.lower():
+                    send_message(chat_id, "Fetching market data for you... (Processing)")
+        
+        time.sleep(2) # Wait 2 seconds between checks
 
 if __name__ == "__main__":
-    send_full_report()
+    # First, send your daily report
+    # (Add your get_indian_market() calls here)
+    
+    # Then, start listening
+    listen_for_messages()
